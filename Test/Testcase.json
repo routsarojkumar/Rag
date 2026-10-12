@@ -1,0 +1,35 @@
+{
+  "sample_document": "sample_rag_test_4pages.pdf",
+  "tests": [
+    {
+      "id": "route-optimization-time",
+      "type": "positive",
+      "question": "How long did the hybrid quantum-classical framework take to optimize the route, and how long did the old approach take?",
+      "expected_answer_contains": ["12 seconds", "4 hours"]
+    },
+    {
+      "id": "scheduling-zones",
+      "type": "positive",
+      "question": "Which cities host the three redundant scheduling server zones?",
+      "expected_answer_contains": ["Frankfurt", "Singapore", "Seattle"]
+    },
+    {
+      "id": "error-mitigation-rate",
+      "type": "positive",
+      "question": "What was the target Error Mitigation Rate and the actual peak rate during the initial 90-day period?",
+      "expected_answer_contains": ["99.8%", "98.4%"]
+    },
+    {
+      "id": "unsupported-ceo",
+      "type": "negative",
+      "question": "Who is the project's CEO, and what is their date of birth?",
+      "expected_answer_contains": ["I don't have enough information"]
+    },
+    {
+      "id": "unsupported-budget",
+      "type": "negative",
+      "question": "What was the project's total annual employee salary budget?",
+      "expected_answer_contains": ["I don't have enough information"]
+    }
+  ]
+}

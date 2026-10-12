@@ -1,0 +1,6 @@
+.venv/
+.venv*/
+chroma_db/
+Test/SystemTestReport.xlsx
+__pycache__/
+*.py[cod]
