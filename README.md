@@ -29,6 +29,7 @@ the machine running it.
 | `rag.py` | RAG implementation: query embedding, Chroma retrieval, context/prompt construction, answer generation, and the `SimpleRAG.ask()` entry point. |
 | `ingest.py` | PDF extraction, text chunking, embedding generation, and persistent Chroma indexing. Its standard command indexes PDFs found in `documents`. |
 | `config.py` | Runtime settings: Ollama model names, Chroma location and collection, chunk size/overlap, and retrieval count. |
+| `tracing.py` | Shared console tracing for ingestion and RAG operations. Logs start/completion, elapsed seconds, Ollama token usage when reported, and exception details before re-raising failures. |
 | `install.ps1` | Windows setup automation. Creates the Python environment, installs dependencies and machine prerequisites, downloads configured Ollama models, and indexes PDFs when needed. |
 | `check_setup.py` | Post-install health check for Python, required configuration and folders, dependency versions, PDFs, Ollama service, and configured models. It does not inspect the generated Chroma index. |
 | `requirements.txt` | Pinned Python dependencies used by the application. |
@@ -69,3 +70,12 @@ Git.
 
 For custom virtual-environment locations, manual setup commands, expected
 prerequisites, and operational details, see [INSTALL.md](./INSTALL.md).
+
+During ingestion and chat, operation traces are printed to the console. They
+identify PDF extraction, page chunking, per-chunk embedding and Chroma writes,
+query embedding, retrieval, prompt construction, and answer generation. A
+failed operation logs its name, elapsed time, exception message, and traceback,
+then the error is re-raised to the caller. Ollama embedding traces report input
+tokens; answer-generation traces report prompt/input tokens, generated/output
+tokens, and their total when the model response supplies those counts. Other
+operations do not report token counts.

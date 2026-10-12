@@ -109,6 +109,13 @@ Start the interactive question-and-answer program:
 
 Ask a question at the prompt. Type `exit` or `quit` to close the program.
 
+Ingestion and question answering print operation traces to the console,
+including elapsed time for chunking, embeddings, Chroma writes, retrieval,
+prompt construction, and answer generation. If an operation fails, the trace
+includes the operation name, exception details, and traceback.
+Ollama embedding traces include input-token counts; answer-generation traces
+include input, output, and total token counts when provided by the model.
+
 ## Custom environment command reference
 
 All Python dependencies are pinned in the repository-root `requirements.txt`.
