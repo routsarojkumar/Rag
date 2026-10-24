@@ -1,137 +1,70 @@
-# rag.py
+from __future__ import annotations
+
+from typing import Any
 
 import chromadb
-import ollama
 
-from config import (
-    CHROMA_PATH,
-    COLLECTION_NAME,
-    EMBEDDING_MODEL,
-    LLM_MODEL,
-    TOP_K,
-)
+from config import CHROMA_PATH, COLLECTION_NAME
+from generator import NO_ANSWER, AnswerGenerator
+from rag_models import RetrievalResult
+from retriever import Retriever
 from tracing import trace_operation
 
 
 class SimpleRAG:
-
-    def __init__(self):
-
+    def __init__(self) -> None:
         with trace_operation("Chroma client and collection initialization"):
-            self.client = chromadb.PersistentClient(
-                path=CHROMA_PATH
-            )
+            self.client = chromadb.PersistentClient(path=CHROMA_PATH)
+            self.collection = self.client.get_collection(name=COLLECTION_NAME)
 
-            self.collection = self.client.get_collection(
-                name=COLLECTION_NAME
-            )
+        self.retriever = Retriever(self.collection)
+        self.generator = AnswerGenerator()
 
-    def embed_query(self, query):
+    def embed_query(self, query: str) -> list[float]:
+        return self.retriever.embed_query(query)
 
-        with trace_operation("Query embedding") as trace:
-            response = ollama.embed(
-                model=EMBEDDING_MODEL,
-                input=query
-            )
-            trace.record_ollama_usage(response)
-            embedding = response["embeddings"][0]
+    def _standalone_query(
+        self,
+        query: str,
+        history: list[dict[str, str]] | None,
+    ) -> str:
+        return self.retriever._standalone_query(query, history)
 
-        return embedding
+    def retrieve(
+        self,
+        query: str,
+        where: dict[str, Any] | None = None,
+        history: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
+        result = self.retriever.retrieve(query, where=where, history=history)
+        return result.to_trace_dict()
 
-    def retrieve(self, query, where=None):
+    def build_prompt(
+        self,
+        query: str,
+        results: RetrievalResult,
+        history: list[dict[str, str]] | None = None,
+    ) -> str:
+        return self.generator.build_prompt(query, results, history=history)
 
-        with trace_operation("Retrieval") as trace:
-            query_embedding = self.embed_query(query)
+    def generate_answer(self, prompt: str) -> str:
+        return self.generator.generate_answer(prompt)
 
-            results = self.collection.query(
-                query_embeddings=[query_embedding],
-                n_results=TOP_K,
-                where=where
-            )
-            trace.record_retrieved_chunks(results)
-
-            return results
-
-    def build_prompt(self, query, results):
-
-        with trace_operation("Prompt construction"):
-            documents = results["documents"][0]
-            metadatas = results["metadatas"][0]
-
-            context_parts = []
-
-            for i, (document, metadata) in enumerate(
-                zip(documents, metadatas)
-            ):
-
-                source = metadata["source"]
-                page = metadata["page"]
-
-                context_parts.append(
-                    f"""
-SOURCE {i + 1}
-Document: {source}
-Page: {page}
-
-Content:
-{document}
-"""
-                )
-
-            context = "\n".join(context_parts)
-
-            prompt = f"""
-You are a helpful document question-answering assistant.
-
-Answer the user's question using ONLY the information
-provided in the context.
-
-If the answer cannot be found in the context,
-say:
-
-"I don't have enough information in the provided documents."
-
-Do not invent information.
-
-Context:
--------------------------
-{context}
--------------------------
-
-User Question:
-{query}
-
-Answer:
-"""
-
-            return prompt
-
-    def generate_answer(self, prompt):
-
-        with trace_operation("Answer generation") as trace:
-            response = ollama.chat(
-                model=LLM_MODEL,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            trace.record_ollama_usage(response)
-
-            return response["message"]["content"]
-
-    def ask(self, query, where=None):
-
+    def ask(
+        self,
+        query: str,
+        where: dict[str, Any] | None = None,
+        history: list[dict[str, str]] | None = None,
+    ) -> tuple[str, dict[str, Any]]:
         with trace_operation("RAG question"):
-            results = self.retrieve(query, where=where)
+            result = self.retriever.retrieve(query, where=where, history=history)
+            if not result.chunks:
+                return NO_ANSWER, result.to_trace_dict()
 
             prompt = self.build_prompt(
                 query,
-                results
+                result,
+                history=history,
             )
-
             answer = self.generate_answer(prompt)
-
-            return answer, results
+            return answer, result.to_trace_dict()

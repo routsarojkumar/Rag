@@ -217,7 +217,12 @@ def ensure_sample_document_is_indexed(filename: str) -> None:
     else:
         print(f"Sample document is not indexed; ingesting: {filename}")
 
-    count = ingest_pdf(str(pdf_path), collection)
+    count = ingest_pdf(
+        str(pdf_path),
+        collection,
+        strategy="fixed_size",
+        confirm_strategy=False,
+    )
     if count != len(required_chunks):
         raise RuntimeError(
             f"Indexed {count} chunks, expected {len(required_chunks)} "

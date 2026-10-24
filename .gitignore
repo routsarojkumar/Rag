@@ -1,6 +1,8 @@
 .venv/
 .venv*/
 chroma_db/
+documents/*_analysis.json
+documents/rag_chunking_strategy_test_document.pdf
 Test/SystemTestReport.xlsx
 __pycache__/
 *.py[cod]

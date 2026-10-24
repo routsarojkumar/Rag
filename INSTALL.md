@@ -95,9 +95,47 @@ virtual environment:
 .\.venv-rag\Scripts\python.exe .\ingest.py
 ```
 
-Ingestion adds chunks to the current index. Avoid rerunning it for the same PDFs,
-because repeated runs can add duplicate chunks. To intentionally start over,
+For each PDF, ingestion runs the document analyzer and saves its JSON report
+beside that PDF. It displays the recommended strategy and available alternatives.
+Press Enter to accept the recommendation, enter a strategy ID to choose another,
+or enter `q` to cancel. Only after selection does the pipeline chunk, embed, and
+store the document. `--yes` accepts each recommendation automatically;
+`--strategy recursive` explicitly chooses a strategy for all documents.
+Ingestion updates chunks for the same filename using deterministic IDs and
+removes stale chunks after successful indexing. To intentionally start over,
 close the app and rename `chroma_db` to a backup name before running ingestion.
+
+RAG retrieval uses `MAX_RETRIEVAL_DISTANCE` from `config.py` to reject weak
+matches. The value is in the active Chroma collection's distance units, so
+calibrate it for the collection's distance metric and embedding model. Lower
+values are stricter. Answer generation passes `LLM_NUM_CTX` explicitly to
+Ollama; increase it only when the machine and model can support the additional
+context memory. Generation uses temperature 0. Retrieval over-fetches to retain
+up to `TOP_K` distinct chunks after duplicates and parent-child expansion, and
+the chat displays the source document/page/section for the retrieved evidence.
+Follow-up turns are used to rewrite short references into standalone search
+queries.
+
+### Profile a PDF before ingestion
+
+Run the analyzer from the project directory. The JSON report is written beside
+the PDF by default:
+
+```powershell
+.\.venv-rag\Scripts\python.exe .\document_analyzer.py .\documents\your-file.pdf
+```
+
+Choose another report location with `--output`:
+
+```powershell
+.\.venv-rag\Scripts\python.exe .\document_analyzer.py `
+  .\documents\your-file.pdf --output .\analysis\your-file.json
+```
+
+The report includes extracted text per page, page classifications, metrics,
+heading/list/table-like layout detections, and a chunking recommendation.
+Structure and table classifications are heuristic, and the analyzer does not
+perform OCR; pages flagged as scanned need OCR before their text can be chunked.
 
 ## 5. Run the application
 
@@ -113,8 +151,10 @@ Ingestion and question answering print operation traces to the console,
 including elapsed time for chunking, embeddings, Chroma writes, retrieval,
 prompt construction, and answer generation. If an operation fails, the trace
 includes the operation name, exception details, and traceback.
-Ollama embedding traces include input-token counts; answer-generation traces
-include input, output, and total token counts when provided by the model.
+Ollama embedding traces include input-token counts; follow-up query-rewriting
+and answer-generation traces include input, output, and total token counts
+when provided by the model. Vector-search traces show the requested candidate
+limit, the number of returned candidates, and elapsed time.
 
 ## Custom environment command reference
 
